@@ -8,8 +8,10 @@ a question and a paragraph of context.
 
 import tensorflow as tf
 import os
-from bilm import TokenBatcher, BidirectionalLanguageModel, weight_layers, \
+from data import TokenBatcher
+from model import  BidirectionalLanguageModel, \
     dump_token_embeddings
+from elmo import weight_layers
 
 # Our small dataset.
 raw_context = [
@@ -36,6 +38,7 @@ datadir = os.path.join('tests', 'fixtures', 'model')
 options_file = os.path.join(datadir, 'options.json')
 weight_file = os.path.join(datadir, 'lm_weights.hdf5')
 
+# embedding_weights
 # Dump the token embeddings to a file. Run this once for your dataset.
 token_embedding_file = 'elmo_token_embeddings.hdf5'
 dump_token_embeddings(

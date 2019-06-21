@@ -12,5 +12,6 @@ import  tensorflow as tf
 with tf.Session() as sess:
     z=tf.random_normal((3,4,2),mean=0.0,stddev=1.0,dtype=tf.float32,seed=None,name=None)
     f=tf.unstack(z, axis=1)
+    x1,x2=sess.run([z, f])
 
-    print(sess.run([z,f]))
+    print(np.array(x2).shape)

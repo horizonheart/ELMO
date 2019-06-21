@@ -4,7 +4,7 @@ import tempfile
 import os
 import numpy as np
 
-from bilm.data import UnicodeCharsVocabulary, Vocabulary, \
+from data import UnicodeCharsVocabulary, Vocabulary, \
     Batcher, TokenBatcher, LMDataset, BidirectionalLMDataset
 
 DATA_FIXTURES = 'tests/fixtures/data/'

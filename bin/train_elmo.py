@@ -9,6 +9,7 @@ from data import BidirectionalLMDataset
 
 def main(args):
     # load the vocab
+    #todo 1.0 加载vocabulary数据集
     vocab = load_vocab(args.vocab_file, 50)
 
     # define the options
@@ -55,7 +56,7 @@ def main(args):
     }
 
     prefix = args.train_prefix
-    #todo 构造数据集
+    #todo 2.0 构造数据集
     data = BidirectionalLMDataset(prefix, vocab, test=False,
                                       shuffle_on_load=True)
 

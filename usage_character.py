@@ -7,7 +7,8 @@ a question and a paragraph of context.
 
 import tensorflow as tf
 import os
-from bilm import Batcher, BidirectionalLanguageModel, weight_layers
+from model import Batcher, BidirectionalLanguageModel
+from elmo import weight_layers
 
 # Location of pretrained LM.  Here we use the test fixtures.
 datadir = os.path.join('tests', 'fixtures', 'model')

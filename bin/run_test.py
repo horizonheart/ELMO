@@ -1,4 +1,4 @@
-
+#todo 测试验证模型
 import argparse
 
 from training import test, load_options_latest_checkpoint, load_vocab

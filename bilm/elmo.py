@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-
+#todo 加权层
 def weight_layers(name, bilm_ops, l2_coef=None,
                   use_top_only=False, do_layer_norm=False):
     '''
@@ -50,21 +50,21 @@ def weight_layers(name, bilm_ops, l2_coef=None,
         def _do_ln(x):
             # do layer normalization excluding the mask
             x_masked = x * broadcast_mask
-            N = tf.reduce_sum(mask_float) * lm_dim
+            N = tf.reduce_sum(mask_float) * lm_dim #todo tf.reduce_sum(mask_float)计算总共有多少个有效的单词
             mean = tf.reduce_sum(x_masked) / N
             variance = tf.reduce_sum(((x_masked - mean) * broadcast_mask)**2
                                     ) / N
             return tf.nn.batch_normalization(
                 x, mean, variance, None, None, 1E-12
             )
-
+        #todo 只要最上次的输出
         if use_top_only:
-            layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
-            # just the top layer
+            layers = tf.split(lm_embeddings, n_lm_layers, axis=1)#(?,3,?,32)
+            # just the top layer  layers=[（？，1，？，32）,（？，1，？，32）,（？，1，？，32）]
             sum_pieces = tf.squeeze(layers[-1], squeeze_dims=1)
             # no regularization
             reg = 0.0
-        else:
+        else:#todo 调用加权的输出
             W = tf.get_variable(
                 '{}_ELMo_W'.format(name),
                 shape=(n_lm_layers, ),
@@ -73,7 +73,7 @@ def weight_layers(name, bilm_ops, l2_coef=None,
                 trainable=True,
             )
 
-            # normalize the weights
+            # normalize the weights 分成三份 每一份的权重是一个层上的值
             normed_weights = tf.split(
                 tf.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
             )

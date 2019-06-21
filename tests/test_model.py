@@ -9,12 +9,12 @@ import shutil
 import numpy as np
 import tensorflow as tf
 
-from bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-from bilm.data import Batcher, TokenBatcher
+from model import BidirectionalLanguageModel, dump_token_embeddings
+from data import Batcher, TokenBatcher
 
-FIXTURES = 'tests/fixtures/model/'
+FIXTURES = 'fixtures/model/'
 
-
+#todo 加载句子
 def _load_sentences_embeddings():
     # get the raw data
     with open(os.path.join(FIXTURES,
@@ -54,7 +54,6 @@ class TestBidirectionalLanguageModel(unittest.TestCase):
         # create the Batcher
         vocab_file = os.path.join(FIXTURES, 'vocab_test.txt')
         batcher = Batcher(vocab_file, 50)
-
         # load the model
         options_file = os.path.join(FIXTURES, 'options.json')
         weight_file = os.path.join(FIXTURES, 'lm_weights.hdf5')
@@ -84,8 +83,9 @@ class TestBidirectionalLanguageModel(unittest.TestCase):
                 [ops['lm_embeddings'], ops['lengths']],
                 feed_dict={character_ids: X}
             )
-
+            #todo 句子的真实的长度
             actual_lengths = [len(sent) for sent in batch_sentences]
+
             self.assertEqual(actual_lengths, list(lengths))
 
             # get the expected embeddings and compare!

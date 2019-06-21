@@ -190,7 +190,7 @@ class LanguageModel(object):
         # map图的每一行进行一个最大池化处理，这样每一个卷积核最终得到[n_token]
         # 的数据。我们总共有m = n_filters个卷积核，将每个卷积核的结果拼接起来，最终会形成一个[n_token, m]
         # 的数据。
-        #
+        #输入数据的大小是：(batch_size, unroll_steps, max_chars, embed_dim)
         def make_convolutions(inp, reuse):
             with tf.variable_scope('CNN', reuse=reuse) as scope:
                 convolutions = []
@@ -229,14 +229,14 @@ class LanguageModel(object):
                             padding="VALID") + b
                     # now max pool
                     #输入的conv大小batch_size*height*weight*channel
-                    #输出的conv大小为batch_size*1*1*channel
+                    #输出的conv大小为batch_size*unroll_steps*1*channel
                     conv = tf.nn.max_pool(
                             conv, [1, 1, max_chars-width+1, 1],
                             [1, 1, 1, 1], 'VALID')
 
                     # activation
                     conv = activation(conv)
-                    #conv 大小为batch_size*1*channel
+                    #conv 大小为batch_size*unroll_steps*channel
                     conv = tf.squeeze(conv, squeeze_dims=[2])
 
                     convolutions.append(conv)
@@ -245,10 +245,10 @@ class LanguageModel(object):
 
         # for first model, this is False, for others it's True
         reuse = tf.get_variable_scope().reuse
-        #todo 定义卷积操作 embedding的大小为batch_size*1*(channel*kernel个数)
+        #todo 定义卷积操作 输出embedding的大小为batch_size*unroll_steps*n_filters个数)
         embedding = make_convolutions(self.char_embedding, reuse)
 
-        self.token_embedding_layers = [embedding]
+        self.token_embedding_layers = [embedding]#todo token_embedding_layers
 
         if self.bidirectional:
             # re-use the CNN weights from forward pass
@@ -263,7 +263,7 @@ class LanguageModel(object):
         use_proj = n_filters != projection_dim
 
         if use_highway or use_proj:
-            # embedding的大小为batch_size * 1 * (n_filters)
+            # embedding的大小为batch_size*unroll_steps*n_filters
             embedding = tf.reshape(embedding, [-1, n_filters])
             if self.bidirectional:
                 embedding_reverse = tf.reshape(embedding_reverse,
@@ -383,6 +383,7 @@ class LanguageModel(object):
             lstm_inputs = [self.embedding]
 
         # now compute the LSTM outputs
+        #todo lstm的相关配置
         cell_clip = self.options['lstm'].get('cell_clip')
         proj_clip = self.options['lstm'].get('proj_clip')
 
@@ -449,10 +450,11 @@ class LanguageModel(object):
                         lstm_cell,
                         tf.unstack(lstm_input, axis=1),
                         initial_state=self.init_lstm_state[-1])
+                #todo 记录最终的输出状态
                 self.final_lstm_state.append(final_state)
 
-            # (batch_size * unroll_steps, 512)
-            lstm_output_flat = tf.reshape(
+            # _lstm_output_unpacked=(unroll_steps*batch_size , 512)
+            lstm_output_flat = tf.reshape( #stack后的大小变成(batch_size*unroll_steps , 512)
                 tf.stack(_lstm_output_unpacked, axis=1), [-1, projection_dim])
             if self.is_training:
                 # add dropout to output
@@ -486,7 +488,7 @@ class LanguageModel(object):
                                    shape=(batch_size, unroll_steps),
                                    name=name)
             return id_placeholder
-
+        #todo 构造target的目标
         # get the window and weight placeholders
         self.next_token_id = _get_next_token_placeholders('')
         if self.bidirectional:
@@ -789,7 +791,7 @@ def train(options, data, n_gpus, tf_save_dir, tf_log_dir,
         ]
         # tensors of the output from the LSTM layer
         #todo lstm的输出
-        lstm_out = tf.get_collection('lstm_output_embeddings')
+        lstm_out = tf.get_collection('lstm_output_embeddings')#(unroll_steps*batch_size , 512)
         histogram_summaries.append(
                 tf.summary.histogram('lstm_embedding_0', lstm_out[0]))
         if options.get('bidirectional', False):
@@ -1144,7 +1146,7 @@ def dump_weights(tf_save_dir, outfile):
         return outname
 
     options, ckpt_file = (tf_save_dir)
-
+    # embedding_weights
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         with tf.variable_scope('lm'):

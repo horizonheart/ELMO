@@ -5,7 +5,7 @@ a file.
 
 import os
 import h5py
-from bilm import dump_bilm_embeddings
+from model import dump_bilm_embeddings
 
 # Our small dataset.
 raw_context = [

@@ -8,9 +8,9 @@ import tempfile
 import tensorflow as tf
 import numpy as np
 
-from bilm.training import train, test, load_vocab, \
+from training import train, test, load_vocab, \
                                 load_options_latest_checkpoint
-from bilm.data import LMDataset, BidirectionalLMDataset
+from data import LMDataset, BidirectionalLMDataset
 
 FIXTURES = 'tests/fixtures/train/'
 
@@ -23,7 +23,7 @@ class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         self.tmp_dir = tempfile.mkdtemp()
         (_, self.tmp_file) = tempfile.mkstemp()
-
+    #todo 获取数据
     def _get_data(self, bidirectional, use_chars, test=False):
         vocab_file = os.path.join(FIXTURES, 'vocab.txt')
         if use_chars:

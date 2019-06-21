@@ -248,6 +248,7 @@ class TokenBatcher(object):
         Each sentence is a list of tokens without <s> or </s>, e.g.
         [['The', 'first', 'sentence', '.'], ['Second', '.']]
         '''
+        #todo 算出最长的句子的长度
         n_sentences = len(sentences)
         max_length = max(len(sentence) for sentence in sentences) + 2
 
@@ -263,7 +264,7 @@ class TokenBatcher(object):
 
 
 ##### for training
-#todo 获取一个batch的大小
+#todo 获取一个batch的大小 generator每次获得一句话的编码和每个单词的编码
 def _get_batch(generator, batch_size, num_steps, max_word_length):
     """Read batches of input."""
     cur_stream = [None] * batch_size
@@ -398,10 +399,10 @@ class LMDataset(object):
 
         if self._shuffle_on_load:
             random.shuffle(sentences)
-        #todo  将句子转换成id
+        #todo  将句子转换成id ids是一个二维的结构
         ids = [self.vocab.encode(sentence, self._reverse)
                for sentence in sentences]
-        #todo 将句子中的每一个单词也转换成数字
+        #todo 将句子中的每一个单词也转换成数字 chars_ids是一个三维的结构
         if self._use_char_inputs:
             chars_ids = [self.vocab.encode_chars(sentence, self._reverse)
                      for sentence in sentences]
@@ -451,11 +452,12 @@ class BidirectionalLMDataset(object):
         self._data_reverse = LMDataset(
             filepattern, vocab, reverse=True, test=test,
             shuffle_on_load=shuffle_on_load)
-
+    #todo 数据集生成的迭代器
     def iter_batches(self, batch_size, num_steps):
         max_word_length = self._data_forward.max_word_length
 
         for X, Xr in zip(
+            #self._data_forward.get_sentence()会获得一句话的编码的id和字符编码的id
             _get_batch(self._data_forward.get_sentence(), batch_size,
                       num_steps, max_word_length),
             _get_batch(self._data_reverse.get_sentence(), batch_size,

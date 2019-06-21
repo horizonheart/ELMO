@@ -5,12 +5,12 @@ import h5py
 import json
 import re
 
-from .data import UnicodeCharsVocabulary, Batcher
+from data import UnicodeCharsVocabulary, Batcher,InvalidNumberOfCharacters
 
 DTYPE = 'float32'
 DTYPE_INT = 'int64'
 
-
+#todo 双向循环神经网络语言模型
 class BidirectionalLanguageModel(object):
     def __init__(
             self,
@@ -58,7 +58,7 @@ class BidirectionalLanguageModel(object):
 
         self._ops = {}
         self._graphs = {}
-
+    #todo 调用model
     def __call__(self, ids_placeholder):
         '''
         Given the input character ids (or token ids), returns a dictionary
@@ -88,6 +88,7 @@ class BidirectionalLanguageModel(object):
             # need to create the graph
             if len(self._ops) == 0:
                 # first time creating the graph, don't reuse variables
+                #todo 构建图模型
                 lm_graph = BidirectionalLanguageModelGraph(
                     self._options,
                     self._weight_file,
@@ -104,22 +105,25 @@ class BidirectionalLanguageModel(object):
                         embedding_weight_file=self._embedding_weight_file,
                         use_character_inputs=self._use_character_inputs,
                         max_batch_size=self._max_batch_size)
-
+            #todo 解析模型获得的结果
             ops = self._build_ops(lm_graph)
+
             self._ops[ids_placeholder] = ops
             self._graphs[ids_placeholder] = lm_graph
             ret = ops
 
         return ret
-
+    #todo 解析模型获得的结果
     def _build_ops(self, lm_graph):
+        #todo lm_graph.update_state_op存储的是final_state
         with tf.control_dependencies([lm_graph.update_state_op]):
             # get the LM embeddings
+            #todo 单词的Embedding向量，作为第一层
             token_embeddings = lm_graph.embedding
             layers = [
                 tf.concat([token_embeddings, token_embeddings], axis=2)
             ]
-
+            #todo 获取lstm的层数
             n_lm_layers = len(lm_graph.lstm_outputs['forward'])
             for i in range(n_lm_layers):
                 layers.append(
@@ -134,13 +138,16 @@ class BidirectionalLanguageModel(object):
             sequence_length_wo_bos_eos = lm_graph.sequence_lengths - 2
             layers_without_bos_eos = []
             for layer in layers:
+                #去掉开始的特殊字符
                 layer_wo_bos_eos = layer[:, 1:, :]
+                #todo 第一次翻转后 最后的特殊字符在第一个位置了
                 layer_wo_bos_eos = tf.reverse_sequence(
                     layer_wo_bos_eos, 
                     lm_graph.sequence_lengths - 1,
                     seq_axis=1,
                     batch_axis=0,
                 )
+                #todo 去掉最后的特殊字符
                 layer_wo_bos_eos = layer_wo_bos_eos[:, 1:, :]
                 layer_wo_bos_eos = tf.reverse_sequence(
                     layer_wo_bos_eos,
@@ -148,6 +155,7 @@ class BidirectionalLanguageModel(object):
                     seq_axis=1,
                     batch_axis=0,
                 )
+                #todo 获取没有特殊字符
                 layers_without_bos_eos.append(layer_wo_bos_eos)
 
             # concatenate the layers
@@ -176,13 +184,13 @@ class BidirectionalLanguageModel(object):
             mask_wo_bos_eos = tf.cast(mask_wo_bos_eos, 'bool')
 
         return {
-            'lm_embeddings': lm_embeddings, 
-            'lengths': sequence_length_wo_bos_eos,
-            'token_embeddings': lm_graph.embedding,
-            'mask': mask_wo_bos_eos,
+            'lm_embeddings': lm_embeddings, #todo 每一个单词lstm的输出 每一个单词正向lstm的输出和反向lstm的输出进行了拼接
+            'lengths': sequence_length_wo_bos_eos,#todo 每一句话的长度实际单词的个数
+            'token_embeddings': lm_graph.embedding, #todo 单词最开始的Embedding向量
+            'mask': mask_wo_bos_eos, #todo mask的值
         }
 
-
+#todo 加载预训练的权重
 def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
     '''
     We'll stub out all the initializers in the pretrained LM with
@@ -242,6 +250,7 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
     return ret
 
 
+#todo  创建图模型 双向循环神经网络图
 class BidirectionalLanguageModelGraph(object):
     '''
     Creates the computational graph and holds the ops necessary for runnint
@@ -258,13 +267,14 @@ class BidirectionalLanguageModelGraph(object):
 
         # this custom_getter will make all variables not trainable and
         # override the default initializer
+        #todo 此函数的作用是为了让所有的变量不用训练并且覆盖默认的初始化函数
         def custom_getter(getter, name, *args, **kwargs):
             kwargs['trainable'] = False
             kwargs['initializer'] = _pretrained_initializer(
                 name, weight_file, embedding_weight_file
             )
             return getter(name, *args, **kwargs)
-
+        #todo 获取vocabulary的个数
         if embedding_weight_file is not None:
             # get the vocab size
             with h5py.File(embedding_weight_file, 'r') as fin:
@@ -272,17 +282,19 @@ class BidirectionalLanguageModelGraph(object):
                 self._n_tokens_vocab = fin['embedding'].shape[0] + 1
         else:
             self._n_tokens_vocab = None
-
+        #todo 利用自己定义初始化函数，进行参数的初始化
         with tf.variable_scope('bilm', custom_getter=custom_getter):
             self._build()
-
+    #todo 创建模型
     def _build(self):
+        #todo 获取输入的Embedding向量，初始化的方法利用的是从已经训练好的模型中进行加载
         if self.use_character_inputs:
             self._build_word_char_embeddings()
         else:
             self._build_word_embeddings()
+        #todo 创建lstm网络结构
         self._build_lstms()
-
+    #todo 创建字符型的Embedding向量
     def _build_word_char_embeddings(self):
         '''
         options contains key 'char_cnn': {
@@ -459,7 +471,7 @@ class BidirectionalLanguageModelGraph(object):
         # at last assign attributes for remainder of the model
         self.embedding = embedding
 
-
+    #todo 创建word Embedding
     def _build_word_embeddings(self):
         projection_dim = self.options['lstm']['projection_dim']
 
@@ -472,7 +484,7 @@ class BidirectionalLanguageModelGraph(object):
             self.embedding = tf.nn.embedding_lookup(self.embedding_weights,
                                                 self.ids_placeholder)
 
-
+    #todo 构建lstm网络
     def _build_lstms(self):
         # now the LSTMs
         # these will collect the initial states for the forward
@@ -491,11 +503,15 @@ class BidirectionalLanguageModelGraph(object):
             print("NOT USING SKIP CONNECTIONS")
 
         # the sequence lengths from input mask
+        #todo 获取真实的序列
         if self.use_character_inputs:
+            # ids_placeholder (None, None, 50)
             mask = tf.reduce_any(self.ids_placeholder > 0, axis=2)
         else:
             mask = self.ids_placeholder > 0
+        #todo 获取真实序列的长度
         sequence_lengths = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
+        #todo batch的大小
         batch_size = tf.shape(sequence_lengths)[0]
 
         # for each direction, we'll store tensors for each layer
@@ -509,6 +525,7 @@ class BidirectionalLanguageModelGraph(object):
             if direction == 'forward':
                 layer_input = self.embedding
             else:
+                #todo Embedding 进行反转
                 layer_input = tf.reverse_sequence(
                     self.embedding,
                     sequence_lengths,
@@ -543,6 +560,7 @@ class BidirectionalLanguageModelGraph(object):
                 # the LSTMs are stateful.  To support multiple batch sizes,
                 # we'll allocate size for states up to max_batch_size,
                 # then use the first batch_size entries for each batch
+                #todo 初始化状态 因为LSTM可以看做有两个隐状态h和c
                 init_states = [
                     tf.Variable(
                         tf.zeros([self._max_batch_size, dim]),
@@ -560,7 +578,9 @@ class BidirectionalLanguageModelGraph(object):
                     i_direction = 1
                 variable_scope_name = 'RNN_{0}/RNN/MultiRNNCell/Cell{1}'.format(
                     i_direction, i)
+                #todo 运行lstm
                 with tf.variable_scope(variable_scope_name):
+                    # todo layer_output的第一个维度是batch 第二个维度是序列的长度 第三个维度是隐向量的长度
                     layer_output, final_state = tf.nn.dynamic_rnn(
                         lstm_cell,
                         layer_input,
@@ -583,7 +603,7 @@ class BidirectionalLanguageModelGraph(object):
                             batch_axis=0
                         )
                     )
-
+                #todo 因为LSTM可以看做有两个隐状态h和c 所以循环为2 c和h，c表示的就是最后时刻cell的内部状态值，h表示的就是最后时刻隐层状态值。
                 with tf.control_dependencies([layer_output]):
                     # update the initial states
                     for i in range(2):
@@ -591,15 +611,17 @@ class BidirectionalLanguageModelGraph(object):
                             [final_state[i][:batch_size, :],
                              init_states[i][batch_size:, :]], axis=0)
                         state_update_op = tf.assign(init_states[i], new_state)
+                        #todo 其实这个里面存的是最后的输出的状态
                         update_ops.append(state_update_op)
     
                 layer_input = layer_output
-
-        self.mask = mask
-        self.sequence_lengths = sequence_lengths
+        #todo 这些值会被保存下来返回给调用者
+        self.mask = mask#（？，？）
+        self.sequence_lengths = sequence_lengths#（？，）
         self.update_state_op = tf.group(*update_ops)
+        # np.random.randn(BATCH_SIZE, 5, EMBEDDING_DIM)
 
-
+#todo 保存token的Embedding
 def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
     '''
     Given an input vocabulary file, dump all the token embeddings to the
@@ -628,7 +650,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         for k in range(n_tokens):
-            token = vocab.id_to_word(k)
+            token = vocab.id_to_word(k)#todo 获取具体的单词
             char_ids = batcher.batch_sentences([[token]])[0, 1, :].reshape(
                 1, 1, -1)
             embeddings[k, :] = sess.run(
@@ -639,7 +661,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
         ds = fout.create_dataset(
             'embedding', embeddings.shape, dtype='float32', data=embeddings
         )
-
+#todo 保存lm的Embedding向量
 def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
                          weight_file, outfile):
     with open(options_file, 'r') as fin:

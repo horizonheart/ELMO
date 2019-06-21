@@ -6,11 +6,11 @@ import json
 import numpy as np
 import tensorflow as tf
 
-from bilm.model import BidirectionalLanguageModel
-from bilm.data import Batcher
-from bilm.elmo import weight_layers
+from model import BidirectionalLanguageModel
+from data import Batcher
+from elmo import weight_layers
 
-FIXTURES = 'tests/fixtures/model/'
+FIXTURES = 'fixtures/model/'
 
 
 
